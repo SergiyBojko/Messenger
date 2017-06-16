@@ -1,0 +1,75 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="LightNoActionbar" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+
+        <item name="colorControlNormal">@color/white</item>
+    </style>
+
+    <style name="ToolbarStyle" parent="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="colorControlNormal">@color/white</item>
+    </style>
+
+    <style name="LogInTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@color/colorPrimary</item>
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:editTextColor">@color/white</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textColorHint">@color/transparentWhite</item>
+        <item name="colorControlNormal">@color/transparentWhite</item>
+        <item name="colorControlActivated">@color/colorAccent</item>
+        <item name="colorControlHighlight">@color/colorAccent</item>
+    </style>
+
+    <style name="LogInInput">
+        <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="LightText">
+        <item name="android:editTextColor">@color/white</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textColorHint">@color/transparentWhite</item>
+    </style>
+
+    <style name="DarkText">
+        <item name="android:editTextColor">@color/grey</item>
+        <item name="android:textColor">@color/grey</item>
+        <item name="android:textColorHint">@color/transparentGrey</item>
+    </style>
+
+    <style name="LightInput" parent="LightText">
+        <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="DarkInput" parent="DarkText">
+        <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="LightHint" parent="LightText">
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="DarkHint" parent="DarkText">
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="MessageBubble" parent="DarkText">
+        <item name="android:layout_margin">5dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:paddingLeft">20dp</item>
+        <item name="android:paddingRight">20dp</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+</resources>
