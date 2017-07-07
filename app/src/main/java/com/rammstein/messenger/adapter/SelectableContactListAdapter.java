@@ -1,6 +1,7 @@
 package com.rammstein.messenger.adapter;
 
 import android.app.Activity;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -8,7 +9,7 @@ import android.widget.LinearLayout;
 
 import com.rammstein.messenger.R;
 import com.rammstein.messenger.adapter.base.BasicContactsAdapter;
-import com.rammstein.messenger.model.UserDetails;
+import com.rammstein.messenger.model.local.UserDetails;
 
 import java.util.ArrayList;
 
@@ -70,6 +71,10 @@ public class SelectableContactListAdapter extends BasicContactsAdapter {
             }
             notifyItemChanged(index);
             ((OnContactSelectedListener)mActivity).onContactSelected(selectedContact, index);
+
+            for (UserDetails user : mSelectedContacts){
+                Log.i("selected", user.getId()+"");
+            }
         }
     }
 

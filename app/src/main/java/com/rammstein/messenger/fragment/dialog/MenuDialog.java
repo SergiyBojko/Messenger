@@ -14,17 +14,18 @@ import android.support.v4.app.DialogFragment;
 
 public class MenuDialog extends DialogFragment {
     private final static String ITEM_IDS = "item_ids";
-    private final static String SELECTED_ITEM = "selected_item";
+    private final static String SELECTED_ITEM_ID = "selected_item_id";
+    private final static String SELECTED_ITEM_INDEX = "selected_item_index";
     private final static String DIALOG_TITLE = "dialog_title";
 
     private OnClickListener mOnClickListener;
 
-    public static DialogFragment newInstance(int[] itemResIds, int itemId, String title){
+    public static DialogFragment newInstance(int[] itemResIds, int itemId, int itemIndex, String title){
         Bundle args = new Bundle();
         args.putIntArray(ITEM_IDS, itemResIds);
-        args.putInt(SELECTED_ITEM, itemId);
+        args.putInt(SELECTED_ITEM_ID, itemId);
+        args.putInt(SELECTED_ITEM_INDEX, itemIndex);
         args.putString(DIALOG_TITLE, title);
-
         MenuDialog fragment = new MenuDialog();
         fragment.setArguments(args);
         return fragment;
@@ -34,7 +35,8 @@ public class MenuDialog extends DialogFragment {
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         final int[] itemIds = getArguments().getIntArray(ITEM_IDS);
-        final int item = getArguments().getInt(SELECTED_ITEM);
+        final int itemId = getArguments().getInt(SELECTED_ITEM_ID);
+        final int itemIndex = getArguments().getInt(SELECTED_ITEM_INDEX);
         String title = getArguments().getString(DIALOG_TITLE);
         CharSequence[] items = new CharSequence[itemIds.length];
         for(int i = 0; i < itemIds.length; i++){
@@ -45,7 +47,7 @@ public class MenuDialog extends DialogFragment {
                 .setItems(items, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mOnClickListener.onOptionSelected(getTag(), itemIds[which], item);
+                        mOnClickListener.onOptionSelected(getTag(), itemIds[which], itemId, itemIndex);
                     }
                 }).create();
         return dialog;
@@ -70,6 +72,6 @@ public class MenuDialog extends DialogFragment {
     }
 
     public interface OnClickListener {
-        void onOptionSelected(String tag, int optionId, int itemId);
+        void onOptionSelected(String tag, int optionId, int itemId, int itemIndex);
     }
 }

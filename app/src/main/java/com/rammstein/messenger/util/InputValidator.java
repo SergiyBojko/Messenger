@@ -23,11 +23,15 @@ public class InputValidator{
         mContext = context;
     }
 
-    public boolean validateUsername(TextInputEditText et) {
+    public boolean validateUsername (TextInputEditText et, TextInputLayout container){
         String input = et.getText().toString();
         input = input.trim();
         if (input.length() > 20 || input.length() < 3){
-            et.setError(mContext.getString(R.string.incorrect_username_length));
+            if (container != null){
+                container.setError(mContext.getString(R.string.incorrect_username_length));
+            } else {
+                et.setError(mContext.getString(R.string.incorrect_username_length));
+            }
             return false;
         }
         Pattern p = Pattern.compile(NOT_A_WORD_CHAR);
@@ -39,6 +43,10 @@ public class InputValidator{
         return true;
     }
 
+    public boolean validateUsername(TextInputEditText et) {
+        return validateUsername(et, null);
+    }
+
     public boolean validateName(TextInputEditText et)
     {
         return validateName(et, null);
@@ -47,8 +55,14 @@ public class InputValidator{
     public boolean validateName(TextInputEditText et, TextInputLayout container)
     {
         String input = et.getText().toString();
-        if (input.length() == 0){
-            return true;
+        if (input.length() < 2){
+            if (container != null) {
+                container.setError(mContext.getString(R.string.name_too_small));
+            } else {
+                et.setError(mContext.getString(R.string.name_too_small));
+            }
+
+            return false;
         }
         if (input.length() > 30){
             if (container != null) {
@@ -74,24 +88,44 @@ public class InputValidator{
         return true;
     }
 
-    public boolean validatePassword(TextInputEditText et) {
+    public boolean validatePassword(TextInputEditText et, TextInputLayout container) {
         String input = et.getText().toString();
         if (input.length() > 20 || input.length() < 6){
-            et.setError(mContext.getString(R.string.incorrect_password_length));
+            if (container != null){
+                container.setError(mContext.getString(R.string.incorrect_password_length));
+            } else {
+                et.setError(mContext.getString(R.string.incorrect_password_length));
+            }
             return false;
         }
         Pattern p = Pattern.compile(SPACE_CHAR);
         Matcher m = p.matcher(input);
         if (m.find()){
-            et.setError(String.format(mContext.getString(R.string.char_x_not_allowed), m.group()));
+            if (container != null){
+                container.setError(mContext.getString(R.string.incorrect_password_length));
+            } else {
+                et.setError(String.format(mContext.getString(R.string.char_x_not_allowed), m.group()));
+            }
             return false;
         }
         return true;
     }
 
-    public boolean validateDateOfBirth(long timeInMillis, TextInputEditText et) {
+    public boolean validatePassword(TextInputEditText et){
+        return validatePassword(et, null);
+    }
+
+    public boolean validateDateOfBirth(long timeInMillis, TextInputEditText et){
+        return validateDateOfBirth(timeInMillis, et, null);
+    }
+
+    public boolean validateDateOfBirth(long timeInMillis, TextInputEditText et, TextInputLayout container) {
         if (timeInMillis > System.currentTimeMillis()){
-            et.setError(mContext.getString(R.string.incorrect_date_of_birth));
+            if (container != null){
+                container.setError(mContext.getString(R.string.incorrect_date_of_birth));
+            } else {
+                et.setError(mContext.getString(R.string.incorrect_date_of_birth));
+            }
             return false;
         }
         return true;

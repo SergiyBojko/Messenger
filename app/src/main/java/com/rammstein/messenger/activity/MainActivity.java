@@ -7,8 +7,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.annotation.IntegerRes;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -20,19 +20,33 @@ import android.widget.Toast;
 
 import com.rammstein.messenger.R;
 import com.rammstein.messenger.adapter.MainViewPagerAdapter;
+import com.rammstein.messenger.fragment.dialog.ConfirmationDialog;
+import com.rammstein.messenger.fragment.dialog.ConfirmationWithOptionsDialog;
+import com.rammstein.messenger.fragment.dialog.ConnectionDialog;
 import com.rammstein.messenger.fragment.dialog.DatePickerDialogFragment;
 import com.rammstein.messenger.fragment.dialog.MenuDialog;
+import com.rammstein.messenger.fragment.dialog.NotificationDialog;
 import com.rammstein.messenger.fragment.dialog.ProfileDialog;
 import com.rammstein.messenger.fragment.dialog.TextInputDialogFragment;
-import com.rammstein.messenger.model.Chat;
-import com.rammstein.messenger.model.Message;
-import com.rammstein.messenger.repository.Repository;
-import com.rammstein.messenger.repository.TestChatRepository;
+import com.rammstein.messenger.model.local.AppUser;
+import com.rammstein.messenger.model.local.Chat;
+import com.rammstein.messenger.model.local.Message;
+import com.rammstein.messenger.model.local.UserDetails;
+import com.rammstein.messenger.model.web.response.UserDetailsResponse;
+import com.rammstein.messenger.repository.RealmRepository;
+import com.rammstein.messenger.repository.SharedPreferencesRepository;
+import com.rammstein.messenger.service.SignalRService;
+import com.rammstein.messenger.util.InternetHelper;
+import com.rammstein.messenger.util.RealmHelper;
+import com.rammstein.messenger.util.SimpleDateUtils;
+import com.rammstein.messenger.web.retrofit.RetrofitHelper;
 import com.theartofdev.edmodo.cropper.CropImage;
 import com.theartofdev.edmodo.cropper.CropImageView;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.GregorianCalendar;
@@ -40,11 +54,21 @@ import java.util.GregorianCalendar;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import devlight.io.library.ntb.NavigationTabBar;
+import io.realm.RealmChangeListener;
+import io.realm.RealmList;
+import io.realm.RealmModel;
+import io.realm.RealmResults;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+import static com.rammstein.messenger.model.local.Message.TIME_IN_MILLS;
 
 public class MainActivity extends AppCompatActivity
         implements View.OnClickListener, NavigationTabBar.OnTabBarSelectedIndexListener,
         ViewPager.OnPageChangeListener, TextInputDialogFragment.OnClickListener,
-        DatePickerDialogFragment.OnClickListener, MenuDialog.OnClickListener{
+        DatePickerDialogFragment.OnClickListener, MenuDialog.OnClickListener,
+        ConfirmationDialog.OnClickListener, ConfirmationWithOptionsDialog.OnClickListener{
     public static final String FIRST_NAME_INPUT_DIALOG = "first_name_input_fragment";
     public static final String LAST_NAME_INPUT_DIALOG = "last_name_input_fragment";
     public static final String BIRTHDAY_PICKER_DIALOG = "birthday_picker_fragment";
@@ -54,22 +78,61 @@ public class MainActivity extends AppCompatActivity
     public static final String IMAGE_SOURCE_PICKER_DIALOG = "image_source_picker";
     private static final int PICK_AVATAR_FROM_GALLERY_REQUEST = 0;
     private static final int PICK_AVATAR_FOM_CAMERA_REQUEST = 1;
-    public static final String ACTION_UPDATE_PROFILE_FRAGMENT = "update_profile_fragment";
+    public static final String ACTION_UPDATE_VIEW = "update_profile_fragment";
+    private static final String LEAVE_CHAT_CONFIRMATION_DIALOG = "leave_chat_confirmation_dialog";
+    private static final String DELETE_HISTORY_CONFIRMATION_DIALOG = "delete_chat_history_confirmation_dialog";
+    public static final String STOP_SIGNALR_SERVICE = "stop_signalr_service";
 
 
     @BindView(R.id.vp_horizontal_ntb)  ViewPager mViewPager;
     @BindView(R.id.ntb_horizontal)  NavigationTabBar mNavigationTabBar;
     @BindView(R.id.fab)  FloatingActionButton mFloatingActionButton;
     private MainViewPagerAdapter mVPAdapter;
+    private AppUser mAppUser;
+    private RealmRepository mRealmRepository;
+    private Chat mChat;
+    private RetrofitHelper mRetrofitHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
+        mRetrofitHelper = new RetrofitHelper(this);
+        mRealmRepository = RealmRepository.getInstance();
+        mAppUser = mRealmRepository.getById(AppUser.class, getCurrentUserId());
+        InternetHelper.checkInternetConnection(MainActivity.this);
         initViewPager();
         initNavBar();
         mFloatingActionButton.setOnClickListener(this);
+    }
+
+
+    private int getCurrentUserId() {
+        return SharedPreferencesRepository.getInstance().getCurrentUserId();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.i("Main", "pause");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.i("Main", "stop");
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 
     @Override
@@ -85,8 +148,10 @@ public class MainActivity extends AppCompatActivity
         switch (id){
             case R.id.log_out:
                 finish();
+                SharedPreferencesRepository.getInstance().setCurrentUserId(-1);
                 i = new Intent(this, LogInActivity.class);
                 i.putExtra(LogInActivity.EXTRA_ANIMATE, false);
+                sendBroadcast(new Intent(STOP_SIGNALR_SERVICE));
                 startActivity(i);
                 break;
             case R.id.search:
@@ -143,13 +208,10 @@ public class MainActivity extends AppCompatActivity
 
     private int getNewMessageCount() {
         int count = 0;
-        Repository<Chat> repository = TestChatRepository.getInstance();
-        for(Chat chat : repository.getAll()){
-            for (Message message : chat.getMessages()){
-                if (!message.isSeen()){
-                    count++;
-                }
-            }
+        RealmList<Chat> chats = mAppUser.getChats();
+        for(Chat chat : chats){
+            RealmResults<Message> newMessages = chat.getMessages().where().greaterThan(TIME_IN_MILLS, chat.getLastSeenMessageTime()).findAll();
+            count += newMessages.size();
         }
         return count;
     }
@@ -204,16 +266,18 @@ public class MainActivity extends AppCompatActivity
     public void onOkClicked(String tag, String textOutput) {
         switch (tag){
             case FIRST_NAME_INPUT_DIALOG:
+                mRealmRepository.beginTransaction();
+                mAppUser.getUserDetails().setFirstName(textOutput);
+                mRealmRepository.commitTransaction();
                 Log.i("FIRST_NAME", "click ok");
-                Toast.makeText(this, textOutput, Toast.LENGTH_SHORT).show();
-                //((ProfileFragment)mVPAdapter.getItem(0)).getFirstName().setText(textOutput);
-                //TODO
+                //TODO sync with backend
                 break;
             case LAST_NAME_INPUT_DIALOG:
+                mRealmRepository.beginTransaction();
+                mAppUser.getUserDetails().setLastName(textOutput);
+                mRealmRepository.commitTransaction();
                 Log.i("LAST_NAME", "click ok");
-                Toast.makeText(this, textOutput, Toast.LENGTH_SHORT).show();
-                //((ProfileFragment)mVPAdapter.getItem(0)).getFirstName().setText(textOutput);
-                //TODO
+                //TODO sync with backend
                 break;
         }
     }
@@ -222,32 +286,59 @@ public class MainActivity extends AppCompatActivity
     public void onOkClicked(String tag, GregorianCalendar date) {
         switch (tag){
             case BIRTHDAY_PICKER_DIALOG:
+                GregorianCalendar now = new GregorianCalendar();
+                if (date.before(now)){
+                    mRealmRepository.beginTransaction();
+                    Log.i("MainActivity", mRealmRepository.getRealm().isClosed()+"");
+                    mAppUser.getUserDetails().setBirthday(date.getTime());
+                    mRealmRepository.commitTransaction();
+                } else {
+                    Toast.makeText(this, "Date invalid", Toast.LENGTH_LONG).show();
+                }
                 Log.i("BIRTHDAY", "click ok");
-                Toast.makeText(this, date.toString(), Toast.LENGTH_SHORT).show();
-                //TODO validate
+                //TODO //TODO sync with backend
                 break;
         }
     }
 
     @Override
-    public void onOptionSelected(String tag, int optionId, int itemId) {
+    public void onOptionSelected(String tag, int optionId, int itemId, int itemIndex) {
+        RetrofitHelper retrofitHelper = new RetrofitHelper(this);
         Intent intent;
         switch (tag){
             case CONTACT_MENU_DIALOG:
+                UserDetails user = RealmRepository.getInstance().getById(UserDetails.class, itemId);
                 switch (optionId){
                     case R.string.show_information:
                         ProfileDialog dialog = ProfileDialog.newInstance(itemId);
                         dialog.show(getSupportFragmentManager(), PROFILE_DIALOG);
                         break;
-                    case R.string.delete:
-
+                    case R.string.delete_contact:
+                        retrofitHelper.removeFromContacts(this, user.getId());
                         break;
                 }
                 break;
             case CHAT_MENU_DIALOG:
+                mChat = mRealmRepository.getById(Chat.class, itemId);
+                RealmList<Message> messages;
+                DialogFragment dialog;
                 switch (optionId){
-                    case R.string.delete:
-
+                    case R.string.delete_chat_history:
+                        dialog = ConfirmationDialog.newInstance(getResources().getString(R.string.confirm_delete_history));
+                        dialog.show(getSupportFragmentManager(), DELETE_HISTORY_CONFIRMATION_DIALOG);
+                        break;
+                    case R.string.leave_chat:
+                        int[] options = {R.string.delete_chat_history};
+                        dialog = ConfirmationWithOptionsDialog.newInstance(getResources().getString(R.string.confirm_leave_chat), options);
+                        dialog.show(getSupportFragmentManager(), LEAVE_CHAT_CONFIRMATION_DIALOG);
+                        break;
+                    case R.string.mark_as_read:
+                        if (mChat.getMessages().size() > 0){
+                            long lastMessageTime = mChat.getMessages().where().max(TIME_IN_MILLS).longValue();
+                            mRealmRepository.beginTransaction();
+                            mChat.setLastSeenMessageTime(lastMessageTime);
+                            mRealmRepository.commitTransaction();
+                        }
                         break;
                 }
                 break;
@@ -269,8 +360,6 @@ public class MainActivity extends AppCompatActivity
                 }
                 break;
         }
-        String text = itemId + " " + getResources().getString(optionId) + " " +tag;
-        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -311,22 +400,67 @@ public class MainActivity extends AppCompatActivity
                 e.printStackTrace();
             }
             Bitmap croppedImage = BitmapFactory.decodeStream(imageStream);
-            int imageSize = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100, getResources().getDisplayMetrics());
-
-            //resizing image here because resizing in CropImage works inconsistently
+            int imageSize = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 200, getResources().getDisplayMetrics());
             Bitmap resizedImage = Bitmap.createScaledBitmap(croppedImage, imageSize, imageSize, false);
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            resizedImage.compress(Bitmap.CompressFormat.PNG, 100, stream);
+            byte[] byteArray = stream.toByteArray();
 
-            saveImageToServer(resizedImage);
+            saveImageToServer(byteArray);
         }
 
     }
 
-    private void saveImageToServer(Bitmap resizedImage) {
-        //TODO
-        Log.i("main", "send broadcast");
-        Intent i = new Intent();
-        i.setAction(ACTION_UPDATE_PROFILE_FRAGMENT);
-        i.putExtra("image", resizedImage);
-        sendBroadcast(i);
+    private void saveImageToServer(byte[] image) {
+        mRetrofitHelper.uploadImage(image, new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+
+                if (response.code() == 201){
+                    mRetrofitHelper.addOrUpdateUser(MainActivity.this, mAppUser.getId());
+                } else {
+                    try {
+                        NotificationDialog dialog = NotificationDialog.newInstance(getString(R.string.error), response.errorBody().string());
+                        dialog.show(getSupportFragmentManager(), "error");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                NotificationDialog dialog = NotificationDialog.newInstance(getString(R.string.error), t.getLocalizedMessage());
+                dialog.show(getSupportFragmentManager(), "error");
+            }
+        });
+    }
+
+    @Override
+    public void onConfirm(String tag) {
+        switch (tag){
+            case DELETE_HISTORY_CONFIRMATION_DIALOG:
+                mRetrofitHelper.deleteChatHistory(this, mChat.getId());
+                break;
+        }
+    }
+
+    @Override
+    public void onConfirm(String tag, Bundle args) {
+        AppUser appUser = RealmHelper.getCurrentUser();
+        switch (tag){
+            case LEAVE_CHAT_CONFIRMATION_DIALOG:
+                mRetrofitHelper.removeUserFromChat(this, mChat.getId(), appUser.getId());
+                boolean deleteChat = args.getBoolean(Integer.toString(R.string.delete_chat_history));
+                if (deleteChat){
+                    mRetrofitHelper.deleteChatHistory(this, mChat.getId());
+                }
+                break;
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        finish();
     }
 }

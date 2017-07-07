@@ -12,11 +12,14 @@ import com.rammstein.messenger.R;
 import com.rammstein.messenger.activity.ChatActivity;
 import com.rammstein.messenger.adapter.base.BasicContactsAdapter;
 import com.rammstein.messenger.fragment.dialog.MenuDialog;
-import com.rammstein.messenger.model.UserDetails;
+import com.rammstein.messenger.model.local.UserDetails;
+import com.rammstein.messenger.util.RealmHelper;
 
 import java.util.ArrayList;
 
-import static com.rammstein.messenger.activity.SearchActivity.USER_MENU_DIALOG;
+import io.realm.RealmResults;
+
+import static com.rammstein.messenger.activity.MainActivity.CONTACT_MENU_DIALOG;
 
 /**
  * Created by user on 13.06.2017.
@@ -24,8 +27,11 @@ import static com.rammstein.messenger.activity.SearchActivity.USER_MENU_DIALOG;
 
 public class SearchResultsAdapter extends BasicContactsAdapter{
 
+    private RealmResults<UserDetails> currentFriends;
+
     public SearchResultsAdapter(Activity activity, ArrayList<UserDetails> userDetails) {
         super(activity, userDetails);
+        currentFriends = RealmHelper.getSortedContactList();
     }
 
     @Override
@@ -46,7 +52,15 @@ public class SearchResultsAdapter extends BasicContactsAdapter{
 
     @Override
     protected void setStatus(BasicContactsAdapter.ViewHolder holder, UserDetails userDetails) {
-        holder.getAdditionalInfo().setText(userDetails.getUsername());
+        String text;
+        if (currentFriends.contains(userDetails)){
+            text = "In contact list";
+        } else{
+            text = "";
+        }
+
+
+        holder.getAdditionalInfo().setText(text);
     }
 
     class ViewHolder extends BasicContactsAdapter.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
@@ -61,6 +75,7 @@ public class SearchResultsAdapter extends BasicContactsAdapter{
         @Override
         public void onClick(View v) {
             Intent i = new Intent(mActivity, ChatActivity.class);
+            i.putExtra(ChatActivity.USER_NAME_EXTRA, mUserDetails.get(getAdapterPosition()).getName());
             i.putExtra(ChatActivity.USER_ID_EXTRA, mUserDetails.get(getAdapterPosition()).getId());
             mActivity.startActivity(i);
         }
@@ -68,9 +83,15 @@ public class SearchResultsAdapter extends BasicContactsAdapter{
         @Override
         public boolean onLongClick(View v) {
             UserDetails userDetails = mUserDetails.get(getAdapterPosition());
-            int[] options = {R.string.show_information, R.string.add_to_contacts};
-            DialogFragment dialog = MenuDialog.newInstance(options, userDetails.getId(), userDetails.getName());
-            dialog.show(((FragmentActivity)mActivity).getSupportFragmentManager(), USER_MENU_DIALOG);
+            int[] options;
+            if (currentFriends.contains(userDetails)){
+                options = new int[]{R.string.show_information, R.string.delete_contact};
+            } else {
+                options = new int[]{R.string.show_information, R.string.add_to_contacts, R.string.show_connection};
+            }
+
+            DialogFragment dialog = MenuDialog.newInstance(options, userDetails.getId(), getAdapterPosition(), userDetails.getName());
+            dialog.show(((FragmentActivity)mActivity).getSupportFragmentManager(), CONTACT_MENU_DIALOG);
             return false;
         }
     }

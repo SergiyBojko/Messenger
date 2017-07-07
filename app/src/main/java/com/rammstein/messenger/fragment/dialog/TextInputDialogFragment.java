@@ -11,7 +11,6 @@ import android.support.design.widget.TextInputLayout;
 import android.support.v4.app.DialogFragment;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 
 import com.rammstein.messenger.R;
@@ -97,6 +96,7 @@ public class TextInputDialogFragment extends DialogFragment {
         boolean isValid;
         InputValidator iv = new InputValidator(getContext());
         switch (getTag()){
+
             case FIRST_NAME_INPUT_DIALOG:
             case LAST_NAME_INPUT_DIALOG:
                 isValid = iv.validateName(mInput, mInputContainer);

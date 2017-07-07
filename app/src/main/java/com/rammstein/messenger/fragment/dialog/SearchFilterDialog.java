@@ -15,9 +15,8 @@ import android.view.View;
 import android.widget.Spinner;
 
 import com.rammstein.messenger.R;
-import com.rammstein.messenger.activity.SearchActivity;
 import com.rammstein.messenger.adapter.SpinnerWithHeaderAdapter;
-import com.rammstein.messenger.model.Gender;
+import com.rammstein.messenger.model.local.Gender;
 
 import java.util.ArrayList;
 
@@ -181,14 +180,14 @@ public class SearchFilterDialog extends DialogFragment {
     }
 
     private void initGenderSpinner(int genderIndex) {
-        String header = getResources().getString(R.string.gender);
+        String header = getResources().getString(R.string.any);
         ArrayList<String> genderList = new ArrayList<>();
         for (Gender gender : Gender.values()){
             String g = getResources().getString(gender.getTextResId());
             genderList.add(g);
         }
         String[] genders = genderList.toArray(new String[genderList.size()]);
-        SpinnerWithHeaderAdapter spinnerAdapter = new SpinnerWithHeaderAdapter(getActivity(), header, R.color.transparentGrey, genders);
+        SpinnerWithHeaderAdapter spinnerAdapter = new SpinnerWithHeaderAdapter(getActivity(), header, R.color.grey, genders);
         mGenderSpinner.setAdapter(spinnerAdapter);
 
         if (genderIndex != UNSPECIFIED){

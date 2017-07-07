@@ -1,11 +1,9 @@
 package com.rammstein.messenger.adapter;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import com.rammstein.messenger.R;
@@ -72,5 +70,10 @@ public class SpinnerWithHeaderAdapter extends BaseAdapter {
         }
 
         return v;
+    }
+
+    public void setHeader (String header){
+        mHeader = header;
+        notifyDataSetChanged();
     }
 }
